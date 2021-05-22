@@ -1,0 +1,6 @@
+.ccls
+.ccls-cache/
+vcpkg_installed/
+build*/
+.vscode/
+*.db

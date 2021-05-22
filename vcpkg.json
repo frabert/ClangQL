@@ -1,0 +1,6 @@
+{
+  "name": "clangql",
+  "description": "Query codebases in SQLite",
+  "version": "0.1.0",
+  "dependencies": [ "protobuf", "grpc" ]
+}
