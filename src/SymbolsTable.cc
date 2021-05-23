@@ -44,31 +44,6 @@ public:
   }
 };
 
-class StreamMerger final : public IResultStream<Symbol> {
-  std::queue<std::unique_ptr<IResultStream<Symbol>>> m_streams;
-public:
-  StreamMerger() {}
-
-  void AddStream(std::unique_ptr<IResultStream<Symbol>> stream) {
-    m_streams.push(std::move(stream));
-  }
-
-  virtual const Symbol & Current() override {
-    return m_streams.front()->Current();
-  }
-
-  virtual bool Next() override {
-    if(m_streams.size() == 0) {
-      return false;
-    } else {
-      bool res = m_streams.front()->Next();
-      if(res) return true;
-      m_streams.pop();
-      return Next();
-    }
-  }
-};
-
 class MultiFuzzyFindStream final : public IResultStream<Symbol> {
   std::unique_ptr<FuzzyFindStream> m_stream = nullptr;
   SymbolIndex::Stub& m_stub;
