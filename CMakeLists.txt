@@ -15,6 +15,7 @@ add_library(clangql
     src/Index.pb.cc
     src/Service.grpc.pb.cc
     src/Service.pb.cc
+    src/RefsTable.cc
     src/RelationsTable.cc
     src/SymbolsTable.cc
     src/Module.cc)

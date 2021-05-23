@@ -43,66 +43,6 @@ public:
   }
 };
 
-class StreamMerger final : public IResultStream<Symbol> {
-  std::queue<std::unique_ptr<IResultStream<Symbol>>> m_streams;
-public:
-  StreamMerger() {}
-
-  void AddStream(std::unique_ptr<IResultStream<Symbol>> stream) {
-    m_streams.push(std::move(stream));
-  }
-
-  virtual const Symbol & Current() override {
-    return m_streams.front()->Current();
-  }
-
-  virtual bool Next() override {
-    if(m_streams.size() == 0) {
-      return false;
-    } else {
-      bool res = m_streams.front()->Next();
-      if(res) return true;
-      m_streams.pop();
-      return Next();
-    }
-  }
-};
-
-class MultiFuzzyFindStream final : public IResultStream<Symbol> {
-  std::unique_ptr<FuzzyFindStream> m_stream = nullptr;
-  SymbolIndex::Stub& m_stub;
-  std::vector<std::string> m_names;
-  FuzzyFindRequest m_req;
-
-public:
-  MultiFuzzyFindStream(SymbolIndex::Stub& stub, FuzzyFindRequest& req, std::vector<std::string> names)
-    : m_stub(stub)
-    , m_names(names)
-    , m_req(req) { }
-
-  virtual const Symbol & Current() override {
-    return m_stream->Current();
-  }
-
-  virtual bool Next() override {
-    if(m_stream == nullptr) {
-      if(m_names.size() == 0) {
-        return false;
-      }
-      auto name = m_names.back();
-      m_req.set_query(name);
-      m_names.pop_back();
-      m_stream = std::make_unique<FuzzyFindStream>(m_stub, m_req);
-
-      return Next();
-    }
-
-    if(m_stream->Next()) return true;
-    m_stream = nullptr;
-    return Next();
-  }
-};
-
 enum {
   SEARCH_NONE = 0,
   SEARCH_FUZZYNAME = 1,
@@ -114,11 +54,6 @@ class SymbolsCursor final : public VirtualTableCursor {
   SymbolIndex::Stub& m_stub;
   bool m_eof = false;
   std::unique_ptr<IResultStream<Symbol>> m_stream = nullptr;
-  grpc::ClientContext m_ctx;
-
-  std::vector<std::string> m_ids;
-  std::vector<std::string> m_scopes;
-  std::vector<std::string> m_names;
 
 public:
   SymbolsCursor(SymbolIndex::Stub& stub) : m_stub(stub) {}
@@ -128,40 +63,27 @@ public:
   }
   int Filter(int idxNum, const char *idxStr, int argc, sqlite3_value **argv) override {
     if(idxNum == SEARCH_ID) {
-      m_ids.push_back((const char*)sqlite3_value_text(argv[0]));
-    } else {
-      FuzzyFindRequest req;
-      int argi = 0;
-      if(idxNum & SEARCH_FUZZYNAME) {
-        m_names.push_back((const char*)sqlite3_value_text(argv[argi++]));
-      }
-
-      if(idxNum & SEARCH_SCOPE) {
-        m_scopes.push_back((const char*)sqlite3_value_text(argv[argi++]));
-      }
-    }
-
-    if(m_ids.size() > 0) {
       LookupRequest req;
-      for(const auto& id : m_ids) {
-        req.add_ids(id);
-      }
+      req.add_ids((const char*)sqlite3_value_text(argv[0]));
       m_stream = std::make_unique<LookupStream>(m_stub, req);
     } else {
       FuzzyFindRequest req;
-      if(m_scopes.size() > 0) {
-        for(const auto& scope : m_scopes) {
-          req.add_scopes(scope);
-        }
-      } else {
+      bool has_name = idxNum & SEARCH_FUZZYNAME;
+      bool has_scope = idxNum & SEARCH_SCOPE;
+
+      if(has_name && has_scope) {
+        req.set_query((const char*)sqlite3_value_text(argv[0]));
+        req.add_scopes((const char*)sqlite3_value_text(argv[1]));
+      } else if(has_name) {
+        req.set_query((const char*)sqlite3_value_text(argv[0]));
         req.set_any_scope(true);
+      } else {
+        req.add_scopes((const char*)sqlite3_value_text(argv[0]));
       }
 
-      m_stream = std::make_unique<MultiFuzzyFindStream>(m_stub, req, m_names);
+      m_stream = std::make_unique<FuzzyFindStream>(m_stub, req);
     }
-
-    Next();
-    return SQLITE_OK;
+    return Next();
   }
   int Next() override {
     m_eof = !m_stream->Next();
@@ -220,12 +142,13 @@ public:
   }
 };
 
-constexpr const char* schema =
-  "CREATE TABLE vtable(Id TEXT, Name TEXT, Scope TEXT, " \
-  "Signature TEXT, Documentation TEXT, ReturnType TEXT, " \
-  "Type TEXT, DefPath TEXT, DefStartLine INT, DefStartCol INT, " \
-  "DefEndLine INT, DefEndCol INT, DeclPath TEXT, " \
-  "DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT)";
+constexpr const char* schema = R"cpp(
+  CREATE TABLE vtable(Id TEXT, Name TEXT, Scope TEXT,
+    Signature TEXT, Documentation TEXT, ReturnType TEXT,
+    Type TEXT, DefPath TEXT, DefStartLine INT, DefStartCol INT,
+    DefEndLine INT, DefEndCol INT, DeclPath TEXT,
+    DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT)
+  )cpp";
 
 SymbolsTable::SymbolsTable(sqlite3* db, std::unique_ptr<SymbolIndex::Stub> stub)
   : m_stub(std::move(stub)) {

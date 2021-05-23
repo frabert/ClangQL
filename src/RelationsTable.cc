@@ -6,6 +6,7 @@ SQLITE_EXTENSION_INIT3
 
 #include <string>
 #include <vector>
+#include <chrono>
 
 using namespace clang::clangd::remote;
 using clang::clangd::remote::v1::SymbolIndex;
@@ -81,8 +82,7 @@ public:
     }
 
     m_stream = std::make_unique<RelationStream>(m_stub, req);
-    Next();
-    return SQLITE_OK;
+    return Next();
   }
 };
 

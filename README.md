@@ -17,6 +17,7 @@ Afterwards, you can connect to a codebase by instantiating the various virtual t
     sqlite> CREATE VIRTUAL TABLE llvm_symbols USING clangql (symbols, clangd-index.llvm.org:5900);
     sqlite> CREATE VIRTUAL TABLE llvm_base_of USING clangql (base_of, clangd-index.llvm.org:5900);
     sqlite> CREATE VIRTUAL TABLE llvm_overridden_by USING clangql (overridden_by, clangd-index.llvm.org:5900);
+    sqlite> CREATE VIRTUAL TABLE llvm_refs USING clangql (refs, clangd-index.llvm.org:5900);
 
 You can then query the codebase as if it was a regular table (some caveats apply, read the last point to learn more):
 
@@ -54,13 +55,25 @@ As another example, searching all the subclasses of a particular class:
     MCAsmInfoELF       llvm::  llvm/include/llvm/MC/MCAsmInfoELF.h
     MCAsmInfoCOFF      llvm::  llvm/include/llvm/MC/MCAsmInfoCOFF.h
 
-In general, for each codebase three different virtual tables can be queried: a `symbols` table will contain information about every symbol in the codebase, a `base_of` table will contain information about what symbols are base classes of what symbols, and a `overridden_by` table will contain information about what symbols are overridden by what symbols.
+Searching for all declarations inside of the `std` namespace:
+
+    sqlite> SELECT decl.Name FROM llvm_symbols AS decl INNER JOIN llvm_refs AS ref ON ref.SymbolId = decl.Id WHERE decl.Scope = "std::" AND ref.Declaration = 1;
+    Name
+    ---------------------
+    align_val_t
+    __unexpected
+    is_execution_policy
+    __terminate
+    is_execution_policy_v
+
+In general, for each codebase four different virtual tables can be queried: a `symbols` table will contain information about every symbol in the codebase, a `base_of` table will contain information about what symbols are base classes of what symbols, a `overridden_by` table will contain information about what symbols are overridden by what symbols, and a `refs` table will contain information about symbol references.
 
 The syntax for instantiating the tables is the following:
 
     CREATE VIRTUAL TABLE my_symbols USING clangql (symbols, host:port);
     CREATE VIRTUAL TABLE my_base_of USING clangql (base_of, host:port);
     CREATE VIRTUAL TABLE my_overridden_by USING clangql (overridden_by, host:port);
+    CREATE VIRTUAL TABLE my_refs USING clangql (refs, host:port);
 
 `my_*` names are not important and can be anything, the first parameter to the creation of the virtual tables is important and must be left as-is, the second parameter is the connection string. Currently, only unencrypted gRPC connections are supported.
 
@@ -82,6 +95,15 @@ The meaning is as follows: if a row `(S, O)` is present in `base_of`, then `S` i
 
 Please note that it is only possible to query these two tables by their `Subject`, querying by `Object` is not possible due to limitations in the clangd protocol.
 
+The schema of `refs` tables is equivalent to
+
+    CREATE TABLE vtable(SymbolId TEXT, Declaration INT,
+      Definition INT, Reference INT, Spelled INT,
+      Path TEXT, StartLine INT, StartCol INT,
+      EndLine INT, EndCol INT)
+
+Please note that querying `refs` without a `SymbolId` will return 0 rows.
+
 ## How do I build it?
 
 ClangQL uses CMake, Protocol Buffers and gRPC. On Windows I used vcpkg to manage the two dependencies. I'm afraid I'm not knowledgeable enough with Linux and/or macOS to give precise indications on how to build it there, but I'm guessing that as long as you have the correct development packages installed and visible on your system, CMake will be able to locate them.
@@ -90,7 +112,7 @@ Once the repository is cloned, run:
 
     cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DCMAKE_TOOLCHAIN_FILE=D:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
-to configure the build. Adjust `CMAKE_BUILD_TYPE`, `VCPKG_TARGET_TRIPLET`, `CMAKE_TOOLCHAIN_FILE` and the generator type to suit your system and needs the best. Please not that the `sqlite` CLI tool and the extension must have the same bitness, at least on Windows. A 32-bit CLI (such as the precompiled one from SQLite.org) _will not_ load a 64-bit extension.
+to configure the build. Adjust `CMAKE_BUILD_TYPE`, `VCPKG_TARGET_TRIPLET`, `CMAKE_TOOLCHAIN_FILE` and the generator type to suit your system and needs the best. Please note that the `sqlite` CLI tool and the extension must have the same bitness, at least on Windows. A 32-bit CLI (such as the precompiled one from SQLite.org) _will not_ load a 64-bit extension.
 
 Once configured, run:
 
@@ -108,6 +130,8 @@ Also, there is currently no way to i.e. obtain all possible relations between tw
 
 Not all queries are equally fast: querying on symbol id, name or scope is fast, everything else needs to happen client side and is potentially slow.
 
-Similarly, when querying the `base_of` or `overridden_by` relations, only one of the two directions is possible, the other is not currently possible due to protocol limitations.
+Similarly, when querying the `base_of` or `overridden_by` relations, only one of the two directions is possible, the other is not currently possible due to protocol limitations. Also, not specifying a `Subject` will result in 0 rows being returned.
+
+Querying `refs` without specifying a `SymbolId` will result in 0 rows being produced. Specifying any one of `Definition`, `Declaration`, `Reference` or `Spelled` will generate more specific requests to the clangd server, all other fields are scanned client side.
 
 Error checking is nonexistant. This is not ready for production use and was mostly made for fun, to explore to what extent the clangd interface was suitable for use with SQLite, and to learn about the SQLite virtual table system.

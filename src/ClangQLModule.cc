@@ -2,6 +2,7 @@
 SQLITE_EXTENSION_INIT3
 #include "SymbolsTable.hpp"
 #include "RelationsTable.hpp"
+#include "RefsTable.hpp"
 #include <grpcpp/grpcpp.h>
 
 #include <string>
@@ -20,6 +21,8 @@ static std::unique_ptr<VirtualTable> InitTable(sqlite3* db, int argc, const char
     return std::make_unique<RelationsTable>(db, SymbolIndex::NewStub(channel), BaseOf);
   } else if(table_type == "overridden_by") {
     return std::make_unique<RelationsTable>(db, SymbolIndex::NewStub(channel), OverriddenBy);
+  } else if(table_type == "refs") {
+    return std::make_unique<RefsTable>(db, SymbolIndex::NewStub(channel));
   } else {
     return nullptr;
   }
