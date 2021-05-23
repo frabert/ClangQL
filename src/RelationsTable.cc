@@ -32,7 +32,6 @@ class RelationsCursor final : public VirtualTableCursor {
   RelationKind m_kind;
   bool m_eof = false;
   std::unique_ptr<IResultStream<Relation>> m_stream = nullptr;
-  grpc::ClientContext m_ctx;
 
   std::vector<std::string> m_subjects;
 public:
