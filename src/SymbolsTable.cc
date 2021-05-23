@@ -5,7 +5,6 @@ SQLITE_EXTENSION_INIT3
 
 #include <string>
 #include <vector>
-#include <queue>
 
 using namespace clang::clangd::remote;
 using clang::clangd::remote::v1::SymbolIndex;
