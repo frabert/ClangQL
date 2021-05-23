@@ -124,9 +124,7 @@ I have uploaded precompiled 32- and 64-bit DLLs for Windows as a GitHub release,
 
 ## What works, what doesn't?
 
-I haven't implemented a virtual table for the symbol references, because the current clangd protocol does not return the referred symbol's id in its response.
-
-Also, there is currently no way to i.e. obtain all possible relations between two symbols, so the relation tables are really only useful in joins. It's not a huge deal, as they are meant to be used that way anyways, but you still need to be careful when writing queries.
+There is currently no way to i.e. obtain all possible relations between two symbols, so the relation tables are really only useful in joins. It's not a huge deal, as they are meant to be used that way anyways, but you still need to be careful when writing queries.
 
 Not all queries are equally fast: querying on symbol id, name or scope is fast, everything else needs to happen client side and is potentially slow.
 
