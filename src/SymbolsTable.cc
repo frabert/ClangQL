@@ -13,13 +13,12 @@ class FuzzyFindStream final : public IResultStream<Symbol> {
   grpc::ClientContext m_ctx;
   std::unique_ptr<grpc::ClientReader<FuzzyFindReply>> m_replyReader;
   FuzzyFindReply m_reply;
-public:
-  FuzzyFindStream(SymbolIndex::Stub& stub, FuzzyFindRequest& req)
-    : m_replyReader(stub.FuzzyFind(&m_ctx, req)) { }
 
-  virtual const Symbol& Current() override {
-    return m_reply.stream_result();
-  }
+public:
+  FuzzyFindStream(SymbolIndex::Stub &stub, FuzzyFindRequest &req)
+    : m_replyReader(stub.FuzzyFind(&m_ctx, req)) {}
+
+  virtual const Symbol &Current() override { return m_reply.stream_result(); }
 
   virtual bool Next() override {
     return m_replyReader->Read(&m_reply) && m_reply.has_stream_result();
@@ -30,13 +29,12 @@ class LookupStream final : public IResultStream<Symbol> {
   grpc::ClientContext m_ctx;
   std::unique_ptr<grpc::ClientReader<LookupReply>> m_replyReader;
   LookupReply m_reply;
-public:
-  LookupStream(SymbolIndex::Stub& stub, LookupRequest& req)
-    : m_replyReader(stub.Lookup(&m_ctx, req)) { }
 
-  virtual const Symbol& Current() override {
-    return m_reply.stream_result();
-  }
+public:
+  LookupStream(SymbolIndex::Stub &stub, LookupRequest &req)
+    : m_replyReader(stub.Lookup(&m_ctx, req)) {}
+
+  virtual const Symbol &Current() override { return m_reply.stream_result(); }
 
   virtual bool Next() override {
     return m_replyReader->Read(&m_reply) && m_reply.has_stream_result();
@@ -51,34 +49,33 @@ enum {
 };
 
 class SymbolsCursor final : public VirtualTableCursor {
-  SymbolIndex::Stub& m_stub;
+  SymbolIndex::Stub &m_stub;
   bool m_eof = false;
   std::unique_ptr<IResultStream<Symbol>> m_stream = nullptr;
 
 public:
-  SymbolsCursor(SymbolIndex::Stub& stub) : m_stub(stub) {}
+  SymbolsCursor(SymbolIndex::Stub &stub) : m_stub(stub) {}
 
-  int Close() override {
-    return SQLITE_OK;
-  }
-  int Filter(int idxNum, const char *idxStr, int argc, sqlite3_value **argv) override {
-    if(idxNum == SEARCH_ID) {
+  int Close() override { return SQLITE_OK; }
+  int Filter(int idxNum, const char *idxStr, int argc,
+             sqlite3_value **argv) override {
+    if (idxNum == SEARCH_ID) {
       LookupRequest req;
-      req.add_ids((const char*)sqlite3_value_text(argv[0]));
+      req.add_ids((const char *)sqlite3_value_text(argv[0]));
       m_stream = std::make_unique<LookupStream>(m_stub, req);
     } else {
       FuzzyFindRequest req;
       bool has_name = idxNum & SEARCH_FUZZYNAME;
       bool has_scope = idxNum & SEARCH_SCOPE;
 
-      if(has_name && has_scope) {
-        req.set_query((const char*)sqlite3_value_text(argv[0]));
-        req.add_scopes((const char*)sqlite3_value_text(argv[1]));
-      } else if(has_name) {
-        req.set_query((const char*)sqlite3_value_text(argv[0]));
+      if (has_name && has_scope) {
+        req.set_query((const char *)sqlite3_value_text(argv[0]));
+        req.add_scopes((const char *)sqlite3_value_text(argv[1]));
+      } else if (has_name) {
+        req.set_query((const char *)sqlite3_value_text(argv[0]));
         req.set_any_scope(true);
       } else {
-        req.add_scopes((const char*)sqlite3_value_text(argv[0]));
+        req.add_scopes((const char *)sqlite3_value_text(argv[0]));
       }
 
       m_stream = std::make_unique<FuzzyFindStream>(m_stub, req);
@@ -89,44 +86,90 @@ public:
     m_eof = !m_stream->Next();
     return SQLITE_OK;
   }
-  int Eof() override {
-    return m_eof;
-  }
-  int Column(sqlite3_context* ctx, int idxCol) override {
-    auto& Current = m_stream->Current();
-    switch(idxCol) {
-      #define SET_RES(field) do { \
-        if(Current.has_ ## field()) { \
-          sqlite3_result_text(ctx, Current.field().c_str(), -1, SQLITE_TRANSIENT); \
-        } else { sqlite3_result_null(ctx); } } while(0)
-      #define SET_RES2(field1, field2) do { \
-        if(Current.has_ ## field1() && Current.field1().has_ ## field2()) { \
-          sqlite3_result_text(ctx, Current.field1().field2().c_str(), -1, SQLITE_TRANSIENT); \
-        } else { sqlite3_result_null(ctx); } } while(0)
-      #define SET_RES3(field1, field2, field3) do { \
-        if(Current.has_ ## field1() && Current.field1().has_ ## field2() && Current.field1().field2().has_ ## field3()) { \
-          sqlite3_result_int(ctx, Current.field1().field2().field3()); \
-        } else { sqlite3_result_null(ctx); } } while(0)
-      case 0: SET_RES(id); break;
-      case 1: SET_RES(name); break;
-      case 2: SET_RES(scope); break;
-      case 3: SET_RES(signature); break;
-      case 4: SET_RES(documentation); break;
-      case 5: SET_RES(return_type); break;
-      case 6: SET_RES(type); break;
-      case 7: SET_RES2(definition, file_path); break;
-      case 8: SET_RES3(definition, start, line); break;
-      case 9: SET_RES3(definition, start, column); break;
-      case 10: SET_RES3(definition, end, line); break;
-      case 11: SET_RES3(definition, end, column); break;
-      case 12: SET_RES2(canonical_declaration, file_path); break;
-      case 13: SET_RES3(canonical_declaration, start, line); break;
-      case 14: SET_RES3(canonical_declaration, start, column); break;
-      case 15: SET_RES3(canonical_declaration, end, line); break;
-      case 16: SET_RES3(canonical_declaration, end, column); break;
-      #undef SET_RES
-      #undef SET_RES2
-      #undef SET_RES3
+  int Eof() override { return m_eof; }
+  int Column(sqlite3_context *ctx, int idxCol) override {
+    auto &Current = m_stream->Current();
+    switch (idxCol) {
+#define SET_RES(field)                                                         \
+  do {                                                                         \
+    if (Current.has_##field()) {                                               \
+      sqlite3_result_text(ctx, Current.field().c_str(), -1, SQLITE_TRANSIENT); \
+    } else {                                                                   \
+      sqlite3_result_null(ctx);                                                \
+    }                                                                          \
+  } while (0)
+#define SET_RES2(field1, field2)                                               \
+  do {                                                                         \
+    if (Current.has_##field1() && Current.field1().has_##field2()) {           \
+      sqlite3_result_text(ctx, Current.field1().field2().c_str(), -1,          \
+                          SQLITE_TRANSIENT);                                   \
+    } else {                                                                   \
+      sqlite3_result_null(ctx);                                                \
+    }                                                                          \
+  } while (0)
+#define SET_RES3(field1, field2, field3)                                       \
+  do {                                                                         \
+    if (Current.has_##field1() && Current.field1().has_##field2() &&           \
+        Current.field1().field2().has_##field3()) {                            \
+      sqlite3_result_int(ctx, Current.field1().field2().field3());             \
+    } else {                                                                   \
+      sqlite3_result_null(ctx);                                                \
+    }                                                                          \
+  } while (0)
+    case 0:
+      SET_RES(id);
+      break;
+    case 1:
+      SET_RES(name);
+      break;
+    case 2:
+      SET_RES(scope);
+      break;
+    case 3:
+      SET_RES(signature);
+      break;
+    case 4:
+      SET_RES(documentation);
+      break;
+    case 5:
+      SET_RES(return_type);
+      break;
+    case 6:
+      SET_RES(type);
+      break;
+    case 7:
+      SET_RES2(definition, file_path);
+      break;
+    case 8:
+      SET_RES3(definition, start, line);
+      break;
+    case 9:
+      SET_RES3(definition, start, column);
+      break;
+    case 10:
+      SET_RES3(definition, end, line);
+      break;
+    case 11:
+      SET_RES3(definition, end, column);
+      break;
+    case 12:
+      SET_RES2(canonical_declaration, file_path);
+      break;
+    case 13:
+      SET_RES3(canonical_declaration, start, line);
+      break;
+    case 14:
+      SET_RES3(canonical_declaration, start, column);
+      break;
+    case 15:
+      SET_RES3(canonical_declaration, end, line);
+      break;
+    case 16:
+      SET_RES3(canonical_declaration, end, column);
+      break;
+#undef SET_RES
+#undef SET_RES2
+#undef SET_RES3
     }
     return SQLITE_OK;
   }
@@ -134,7 +177,7 @@ public:
     auto res = strtoll(m_stream->Current().id().c_str(), nullptr, 16);
 
     errno = 0;
-    if(errno) {
+    if (errno) {
       throw std::exception();
     }
 
@@ -142,7 +185,7 @@ public:
   }
 };
 
-constexpr const char* schema = R"cpp(
+constexpr const char *schema = R"cpp(
   CREATE TABLE vtable(Id TEXT, Name TEXT, Scope TEXT,
     Signature TEXT, Documentation TEXT, ReturnType TEXT,
     Type TEXT, DefPath TEXT, DefStartLine INT, DefStartCol INT,
@@ -150,18 +193,21 @@ constexpr const char* schema = R"cpp(
     DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT)
   )cpp";
 
-SymbolsTable::SymbolsTable(sqlite3* db, std::unique_ptr<SymbolIndex::Stub> stub)
+SymbolsTable::SymbolsTable(sqlite3 *db, std::unique_ptr<SymbolIndex::Stub> stub)
   : m_stub(std::move(stub)) {
   int err = sqlite3_declare_vtab(db, schema);
-  if(err != SQLITE_OK) throw std::exception();
+  if (err != SQLITE_OK)
+    throw std::exception();
 }
 
-int SymbolsTable::BestIndex(sqlite3_index_info* info) {
+int SymbolsTable::BestIndex(sqlite3_index_info *info) {
   // First check if we have a search by id
-  for(int i = 0; i < info->nConstraint; i++) {
+  for (int i = 0; i < info->nConstraint; i++) {
     auto constraint = info->aConstraint[i];
-    if(!constraint.usable) continue;
-    if(constraint.iColumn == 0 && constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+    if (!constraint.usable)
+      continue;
+    if (constraint.iColumn == 0 &&
+        constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
       info->aConstraintUsage[i].argvIndex = 1;
       info->idxNum = SEARCH_ID;
       info->estimatedCost = 1;
@@ -172,10 +218,12 @@ int SymbolsTable::BestIndex(sqlite3_index_info* info) {
   int argvIndex = 0;
 
   // Look for a search by name
-  for(int i = 0; i < info->nConstraint; i++) {
+  for (int i = 0; i < info->nConstraint; i++) {
     auto constraint = info->aConstraint[i];
-    if(!constraint.usable) continue;
-    if(constraint.iColumn == 1 && constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+    if (!constraint.usable)
+      continue;
+    if (constraint.iColumn == 1 &&
+        constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
       info->idxNum |= SEARCH_FUZZYNAME;
       info->estimatedCost = 10;
@@ -184,10 +232,12 @@ int SymbolsTable::BestIndex(sqlite3_index_info* info) {
   }
 
   // Look for a search by scope
-  for(int i = 0; i < info->nConstraint; i++) {
+  for (int i = 0; i < info->nConstraint; i++) {
     auto constraint = info->aConstraint[i];
-    if(!constraint.usable) continue;
-    if(constraint.iColumn == 2 && constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+    if (!constraint.usable)
+      continue;
+    if (constraint.iColumn == 2 &&
+        constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
       info->idxNum |= SEARCH_SCOPE;
       info->estimatedCost = 10;
@@ -202,14 +252,13 @@ std::unique_ptr<VirtualTableCursor> SymbolsTable::Open() {
   return std::make_unique<SymbolsCursor>(*m_stub);
 }
 
-int SymbolsTable::Disconnect() {
-  return SQLITE_OK;
-}
+int SymbolsTable::Disconnect() { return SQLITE_OK; }
 
-int SymbolsTable::Destroy() {
-  return SQLITE_OK;
-}
+int SymbolsTable::Destroy() { return SQLITE_OK; }
 
-int SymbolsTable::FindFunction(int nArg, const std::string& name, void (**pxFunc)(sqlite3_context*,int,sqlite3_value**), void **ppArg) {
+int SymbolsTable::FindFunction(int nArg, const std::string &name,
+                               void (**pxFunc)(sqlite3_context *, int,
+                                               sqlite3_value **),
+                               void **ppArg) {
   return 0;
 }
