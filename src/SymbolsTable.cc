@@ -56,6 +56,20 @@ enum {
   SEARCH_SCOPE_EXACT = 16
 };
 
+struct SymbolProperty {
+  enum {
+    Generic = 1 << 0,
+    TemplatePartialSpecialization = 1 << 1,
+    TemplateSpecialization = 1 << 2,
+    UnitTest = 1 << 3,
+    IBAnnotated = 1 << 4,
+    IBOutletCollection = 1 << 5,
+    GKInspectable = 1 << 6,
+    Local = 1 << 7,
+    ProtocolInterface = 1 << 8,
+  };
+};
+
 class SymbolsCursor final : public VirtualTableCursor {
   SymbolIndex::Stub &m_stub;
   bool m_eof = false;
@@ -127,11 +141,28 @@ public:
       sqlite3_result_null(ctx);                                                \
     }                                                                          \
   } while (0)
+#define SET_RES2_INT(field1, field2)                                           \
+  do {                                                                         \
+    if (Current.has_##field1() && Current.field1().has_##field2()) {           \
+      sqlite3_result_int(ctx, Current.field1().field2());                      \
+    } else {                                                                   \
+      sqlite3_result_null(ctx);                                                \
+    }                                                                          \
+  } while (0)
 #define SET_RES3(field1, field2, field3)                                       \
   do {                                                                         \
     if (Current.has_##field1() && Current.field1().has_##field2() &&           \
         Current.field1().field2().has_##field3()) {                            \
       sqlite3_result_int(ctx, Current.field1().field2().field3());             \
+    } else {                                                                   \
+      sqlite3_result_null(ctx);                                                \
+    }                                                                          \
+  } while (0)
+#define SET_RES_PROP(name)                                                     \
+  do {                                                                         \
+    if (Current.has_info() && Current.info().has_properties()) {               \
+      sqlite3_result_int(ctx, (Current.info().properties() &                   \
+                               SymbolProperty::name) == SymbolProperty::name); \
     } else {                                                                   \
       sqlite3_result_null(ctx);                                                \
     }                                                                          \
@@ -187,6 +218,45 @@ public:
     case 16:
       SET_RES3(canonical_declaration, end, column);
       break;
+    case 17:
+      SET_RES2_INT(info, kind);
+      break;
+    case 18:
+      SET_RES2_INT(info, subkind);
+      break;
+    case 19:
+      SET_RES2_INT(info, language);
+      break;
+    case 20:
+      SET_RES_PROP(Generic);
+      break;
+    case 21:
+      SET_RES_PROP(TemplatePartialSpecialization);
+      break;
+    case 22:
+      SET_RES_PROP(TemplateSpecialization);
+      break;
+    case 23:
+      SET_RES_PROP(TemplateSpecialization);
+      break;
+    case 24:
+      SET_RES_PROP(UnitTest);
+      break;
+    case 25:
+      SET_RES_PROP(IBAnnotated);
+      break;
+    case 26:
+      SET_RES_PROP(IBOutletCollection);
+      break;
+    case 27:
+      SET_RES_PROP(GKInspectable);
+      break;
+    case 28:
+      SET_RES_PROP(Local);
+      break;
+    case 29:
+      SET_RES_PROP(ProtocolInterface);
+      break;
 #undef SET_RES
 #undef SET_RES2
 #undef SET_RES3
@@ -210,7 +280,11 @@ constexpr const char *schema = R"cpp(
     Signature TEXT, Documentation TEXT, ReturnType TEXT,
     Type TEXT, DefPath TEXT, DefStartLine INT, DefStartCol INT,
     DefEndLine INT, DefEndCol INT, DeclPath TEXT,
-    DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT)
+    DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT,
+    Kind INT, SubKind INT, Language INT,
+    Generic INT, TemplatePartialSpecialization INT, TemplateSpecialization INT,
+    UnitTest INT, IBAnnotated INT, IBOutletCollection INT, GKInspectable INT,
+    Local INT, ProtocolInterface INT)
   )cpp";
 
 SymbolsTable::SymbolsTable(sqlite3 *db, std::unique_ptr<SymbolIndex::Stub> stub)

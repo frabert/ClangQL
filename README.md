@@ -85,7 +85,15 @@ The schema of `symbols` tables is equivalent to the following:
       Signature TEXT, Documentation TEXT, ReturnType TEXT,
       Type TEXT, DefPath TEXT, DefStartLine INT, DefStartCol INT,
       DefEndLine INT, DefEndCol INT, DeclPath TEXT,
-      DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT)
+      DeclStartLine INT, DeclStartCol INT, DeclEndLine INT, DeclEndCol INT,
+      Kind INT, SubKind INT, Language INT,
+      Generic INT, TemplatePartialSpecialization INT, TemplateSpecialization INT,
+      UnitTest INT, IBAnnotated INT, IBOutletCollection INT, GKInspectable INT,
+      Local INT, ProtocolInterface INT)
+
+A textual representation for the `Kind`, `SubKind` and `Language` columns can be obtained using the `symbol_kind`, `symbol_subkind` and `symbol_language` functions.
+
+Currently, the columns from `Generic` to `ProtocolInterface` are always 0, because for some reason the server always sends a zero-valued `properties` field.
 
 The schema for `base_of` is the same as `overridden_by`, and is equivalent to the following:
 
