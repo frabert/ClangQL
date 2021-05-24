@@ -229,6 +229,7 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
     if (constraint.iColumn == 0 &&
         constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
       info->aConstraintUsage[i].argvIndex = 1;
+      info->aConstraintUsage[i].omit = 1;
       info->idxNum = SEARCH_ID;
       info->estimatedCost = 1;
       return SQLITE_OK;
@@ -246,6 +247,8 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
         (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
          constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
+      info->aConstraintUsage[i].omit =
+       constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE;
       info->idxNum |= SEARCH_FUZZYNAME;
       info->estimatedCost = 1;
       break;
@@ -261,6 +264,8 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
         (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
          constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
+      info->aConstraintUsage[i].omit =
+       constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE;
       info->idxNum |= SEARCH_SCOPE;
       if (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
         info->idxNum |= SEARCH_SCOPE_EXACT;
@@ -276,9 +281,9 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
     if (!constraint.usable)
       continue;
     if ((constraint.iColumn == 7 || constraint.iColumn == 12) &&
-        (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
-         constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
+        constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
+      info->aConstraintUsage[i].omit = 1;
       info->idxNum |= SEARCH_PATH;
       info->estimatedCost = 1;
       break;
