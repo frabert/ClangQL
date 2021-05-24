@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.1)
-project(clangql VERSION 0.2.0
+project(clangql VERSION 0.3.0
                 DESCRIPTION "ClangQL"
                 LANGUAGES C CXX)
 
