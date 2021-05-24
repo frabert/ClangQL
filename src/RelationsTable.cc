@@ -123,5 +123,4 @@ int RelationsTable::FindFunction(int nArg, const std::string &name,
                                  void **ppArg) {
   return 0;
 }
-int RelationsTable::Disconnect() { return SQLITE_OK; }
 int RelationsTable::Destroy() { return SQLITE_OK; }

@@ -4,6 +4,10 @@ SQLITE_EXTENSION_INIT3
 #include "Module.hpp"
 #include "VirtualTable.hpp"
 #include "VirtualTableCursor.hpp"
+#include <algorithm>
+#include <cstring>
+#include <new>
+#include <stdexcept>
 
 struct module_vtab {
   sqlite3_vtab base;
@@ -22,52 +26,58 @@ static int module_destroy(sqlite3_vtab *pVtab) {
   return SQLITE_OK;
 }
 
-static int module_disconnect(sqlite3_vtab *pVtab) {
-  auto vtab = (module_vtab *)pVtab;
-  vtab->tab->Disconnect();
-  delete vtab;
-  return SQLITE_OK;
-}
-
 static int module_create(sqlite3 *db, void *pAux, int argc,
                          const char *const *argv, sqlite3_vtab **ppVTab,
                          char **pzErr) {
   auto mod = (Module *)pAux;
-  auto vtab = new module_vtab();
-  if (vtab == nullptr) {
+  module_vtab *vtab;
+
+  try {
+    vtab = new module_vtab();
+  } catch (std::bad_alloc e) {
     return SQLITE_NOMEM;
   }
 
-  vtab->tab = mod->Create(db, argc, argv);
-
-  *ppVTab = &(vtab->base);
-  return SQLITE_OK;
-}
-
-static int module_connect(sqlite3 *db, void *pAux, int argc,
-                          const char *const *argv, sqlite3_vtab **ppVTab,
-                          char **pzErr) {
-  auto mod = (Module *)pAux;
-  auto vtab = new module_vtab();
-  if (vtab == nullptr) {
+  try {
+    vtab->tab = mod->Create(db, argc, argv);
+    *ppVTab = &(vtab->base);
+    return SQLITE_OK;
+  } catch (std::bad_alloc e) {
+    delete vtab;
     return SQLITE_NOMEM;
+  } catch (std::runtime_error e) {
+    auto err = e.what();
+    auto errlen = std::strlen(err);
+    *pzErr = static_cast<char *>(sqlite3_malloc(errlen + 1));
+    if (*pzErr == nullptr) {
+      return SQLITE_ERROR;
+    }
+
+    std::copy(err, err + errlen + 1, *pzErr);
+    return SQLITE_ERROR;
   }
 
-  vtab->tab = mod->Connect(db, argc, argv);
-
-  *ppVTab = &(vtab->base);
   return SQLITE_OK;
 }
 
 static int module_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **pp_cursor) {
   auto table = (module_vtab *)pVTab;
-  auto cur = new module_vtab_cur();
-  if (cur == nullptr) {
+  module_vtab_cur *cur;
+  try {
+    cur = new module_vtab_cur();
+  } catch (std::bad_alloc e) {
     return SQLITE_NOMEM;
-  } else {
+  }
+
+  try {
     cur->cur = table->tab->Open();
     *pp_cursor = &(cur->base);
     return SQLITE_OK;
+  } catch (std::bad_alloc e) {
+    delete cur;
+    return SQLITE_NOMEM;
+  } catch (std::exception e) {
+    return SQLITE_ERROR;
   }
 }
 
@@ -124,7 +134,7 @@ static sqlite3_module module_vtbl = {
  module_create,        /* xCreate       */
  module_create,        /* xConnect      */
  module_best_index,    /* xBestIndex    */
- module_disconnect,    /* xDisconnect   */
+ module_destroy,       /* xDisconnect   */
  module_destroy,       /* xDestroy      */
  module_open,          /* xOpen         */
  module_close,         /* xClose        */

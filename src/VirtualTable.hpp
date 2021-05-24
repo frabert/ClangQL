@@ -16,7 +16,6 @@ public:
                            void (**pxFunc)(sqlite3_context *, int,
                                            sqlite3_value **),
                            void **ppArg) = 0;
-  virtual int Disconnect() = 0;
   virtual int Destroy() = 0;
 };
 

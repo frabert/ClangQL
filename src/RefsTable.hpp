@@ -17,7 +17,6 @@ public:
                            void (**pxFunc)(sqlite3_context *, int,
                                            sqlite3_value **),
                            void **ppArg) override;
-  virtual int Disconnect() override;
   virtual int Destroy() override;
 };
 

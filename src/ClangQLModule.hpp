@@ -6,8 +6,6 @@ class ClangQLModule : public Module {
 public:
   virtual std::unique_ptr<VirtualTable>
   Create(sqlite3 *db, int argc, const char *const *argv) override;
-  virtual std::unique_ptr<VirtualTable>
-  Connect(sqlite3 *db, int argc, const char *const *argv) override;
 };
 
 #endif

@@ -263,6 +263,4 @@ int RefsTable::FindFunction(int nArg, const std::string &name,
   return 0;
 }
 
-int RefsTable::Disconnect() { return SQLITE_OK; }
-
 int RefsTable::Destroy() { return SQLITE_OK; }

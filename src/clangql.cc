@@ -43,7 +43,7 @@ static const char *symbol_kinds[] = {"Unknown",
 static void symbol_kind(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
   int idx = sqlite3_value_int(argv[0]);
   int num_kinds = sizeof(symbol_kinds) / sizeof(*symbol_kinds);
-  if (idx >= num_kinds) {
+  if (idx < 0 || idx >= num_kinds) {
     sqlite3_result_error(ctx, "Invalid symbol kind", -1);
   } else {
     sqlite3_result_text(ctx, symbol_kinds[idx], -1, nullptr);
@@ -58,7 +58,7 @@ static void symbol_subkind(sqlite3_context *ctx, int argc,
                            sqlite3_value **argv) {
   int idx = sqlite3_value_int(argv[0]);
   int num_kinds = sizeof(symbol_subkinds) / sizeof(*symbol_subkinds);
-  if (idx >= num_kinds) {
+  if (idx < 0 || idx >= num_kinds) {
     sqlite3_result_error(ctx, "Invalid symbol subkind", -1);
   } else {
     sqlite3_result_text(ctx, symbol_subkinds[idx], -1, nullptr);
@@ -71,7 +71,7 @@ static void symbol_language(sqlite3_context *ctx, int argc,
                             sqlite3_value **argv) {
   int idx = sqlite3_value_int(argv[0]);
   int num_kinds = sizeof(symbol_languages) / sizeof(*symbol_languages);
-  if (idx >= num_kinds) {
+  if (idx < 0 || idx >= num_kinds) {
     sqlite3_result_error(ctx, "Invalid symbol language", -1);
   } else {
     sqlite3_result_text(ctx, symbol_languages[idx], -1, nullptr);

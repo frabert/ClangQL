@@ -371,8 +371,6 @@ std::unique_ptr<VirtualTableCursor> SymbolsTable::Open() {
   return std::make_unique<SymbolsCursor>(*m_stub);
 }
 
-int SymbolsTable::Disconnect() { return SQLITE_OK; }
-
 int SymbolsTable::Destroy() { return SQLITE_OK; }
 
 static void dummy_func(sqlite3_context *ctx, int argc, sqlite3_value **argv) {

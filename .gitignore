@@ -4,3 +4,4 @@ vcpkg_installed/
 build*/
 .vscode/
 *.db
+*.db-journal

@@ -9,8 +9,6 @@ class Module {
 public:
   virtual std::unique_ptr<VirtualTable> Create(sqlite3 *db, int argc,
                                                const char *const *argv) = 0;
-  virtual std::unique_ptr<VirtualTable> Connect(sqlite3 *db, int argc,
-                                                const char *const *argv) = 0;
   virtual ~Module() = default;
 
   int Register(sqlite3 *db, const char *name);
