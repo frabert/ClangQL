@@ -122,6 +122,19 @@ to compile the extension. First time will take a long time (on Windows), due to 
 
 I have uploaded precompiled 32- and 64-bit DLLs for Windows as a GitHub release, anyways.
 
+## What constraints are available?
+
+On `symbols` tables, the following constraints will generate more specific requests to the clangd server:
+
+- Equality on `Id`, `Name` or `Scope`
+- `LIKE` on `Name`, `Scope`, `DefPath` or `DeclPath`
+
+The `LIKE` constraint on `Name` relies on the fuzzy search semantics of clangd. The `LIKE` constraint on `Scope` has the effect of enabling the `any_scope` field of the fuzzy find request to clangd. The `LIKE` constraint on `DefPath` or `DeclPath` has the only effect of populating the `proximity_path` of the fuzzy find request to clangd, which has the ultimate effect of prioritizing symbols declared or defined near the specified path.
+
+On `base_of` and `overridden_by` tables, only equality on `Subject` generates specific queries to the server.
+
+On `refs` tables, only equality on `SubjectId` generates specific queries to the server.
+
 ## What works, what doesn't?
 
 There is currently no way to i.e. obtain all possible relations between two symbols, so the relation tables are really only useful in joins. It's not a huge deal, as they are meant to be used that way anyways, but you still need to be careful when writing queries.

@@ -42,10 +42,18 @@ public:
 };
 
 enum {
+  // No constraints
   SEARCH_NONE = 0,
+  // Constraint value for `query` in FuzzyFindRequest
   SEARCH_FUZZYNAME = 1,
+  // Constraint value for `scope` in FuzzyFindRequest
   SEARCH_SCOPE = 2,
+  // Constraint value for `id` in LookupRequest
   SEARCH_ID = 4,
+  // Constraint value for `proximity_paths` in FuzzyFindRequest
+  SEARCH_PATH = 8,
+  // The scope constraint is EQ and not LIKE
+  SEARCH_SCOPE_EXACT = 16
 };
 
 class SymbolsCursor final : public VirtualTableCursor {
@@ -65,17 +73,29 @@ public:
       m_stream = std::make_unique<LookupStream>(m_stub, req);
     } else {
       FuzzyFindRequest req;
+      req.set_any_scope(true);
+      int argIndex = 0;
+
       bool has_name = idxNum & SEARCH_FUZZYNAME;
       bool has_scope = idxNum & SEARCH_SCOPE;
+      bool has_path = idxNum & SEARCH_PATH;
+      bool has_exact_scope = idxNum & SEARCH_SCOPE_EXACT;
 
-      if (has_name && has_scope) {
-        req.set_query((const char *)sqlite3_value_text(argv[0]));
-        req.add_scopes((const char *)sqlite3_value_text(argv[1]));
-      } else if (has_name) {
-        req.set_query((const char *)sqlite3_value_text(argv[0]));
-        req.set_any_scope(true);
-      } else {
-        req.add_scopes((const char *)sqlite3_value_text(argv[0]));
+      if (has_name) {
+        req.set_query((const char *)sqlite3_value_text(argv[argIndex++]));
+      }
+
+      if (has_scope) {
+        req.add_scopes((const char *)sqlite3_value_text(argv[argIndex++]));
+      }
+
+      if (has_path) {
+        req.add_proximity_paths(
+         (const char *)sqlite3_value_text(argv[argIndex++]));
+      }
+
+      if (has_exact_scope) {
+        req.set_any_scope(false);
       }
 
       m_stream = std::make_unique<FuzzyFindStream>(m_stub, req);
@@ -223,10 +243,11 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
     if (!constraint.usable)
       continue;
     if (constraint.iColumn == 1 &&
-        constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+        (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
+         constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
       info->idxNum |= SEARCH_FUZZYNAME;
-      info->estimatedCost = 10;
+      info->estimatedCost = 1;
       break;
     }
   }
@@ -237,10 +258,29 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
     if (!constraint.usable)
       continue;
     if (constraint.iColumn == 2 &&
-        constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+        (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
+         constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
       info->aConstraintUsage[i].argvIndex = ++argvIndex;
       info->idxNum |= SEARCH_SCOPE;
-      info->estimatedCost = 10;
+      if (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ) {
+        info->idxNum |= SEARCH_SCOPE_EXACT;
+      }
+      info->estimatedCost = 1;
+      break;
+    }
+  }
+
+  // Look for a search by path
+  for (int i = 0; i < info->nConstraint; i++) {
+    auto constraint = info->aConstraint[i];
+    if (!constraint.usable)
+      continue;
+    if ((constraint.iColumn == 7 || constraint.iColumn == 12) &&
+        (constraint.op == SQLITE_INDEX_CONSTRAINT_EQ ||
+         constraint.op == SQLITE_INDEX_CONSTRAINT_LIKE)) {
+      info->aConstraintUsage[i].argvIndex = ++argvIndex;
+      info->idxNum |= SEARCH_PATH;
+      info->estimatedCost = 1;
       break;
     }
   }
@@ -256,9 +296,17 @@ int SymbolsTable::Disconnect() { return SQLITE_OK; }
 
 int SymbolsTable::Destroy() { return SQLITE_OK; }
 
+static void dummy_func(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+  sqlite3_result_int(ctx, 1);
+}
+
 int SymbolsTable::FindFunction(int nArg, const std::string &name,
                                void (**pxFunc)(sqlite3_context *, int,
                                                sqlite3_value **),
                                void **ppArg) {
+  if (name == "like") {
+    *pxFunc = dummy_func;
+    return 1;
+  }
   return 0;
 }
