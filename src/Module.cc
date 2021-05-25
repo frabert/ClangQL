@@ -48,7 +48,7 @@ static int module_create(sqlite3 *db, void *pAux, int argc,
   } catch (std::runtime_error e) {
     auto err = e.what();
     auto errlen = std::strlen(err);
-    *pzErr = static_cast<char *>(sqlite3_malloc(errlen + 1));
+    *pzErr = static_cast<char *>(sqlite3_malloc64(errlen + 1));
     if (*pzErr == nullptr) {
       return SQLITE_ERROR;
     }
