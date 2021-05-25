@@ -20,9 +20,7 @@ struct module_vtab_cur {
 };
 
 static int module_destroy(sqlite3_vtab *pVtab) {
-  auto vtab = (module_vtab *)pVtab;
-  vtab->tab->Destroy();
-  delete vtab;
+  delete (module_vtab *)pVtab;
   return SQLITE_OK;
 }
 
@@ -82,9 +80,7 @@ static int module_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **pp_cursor) {
 }
 
 static int module_close(sqlite3_vtab_cursor *pVCur) {
-  auto cur = (module_vtab_cur *)pVCur;
-  cur->cur->Close();
-  delete cur;
+  delete (module_vtab_cur *)pVCur;
   return SQLITE_OK;
 }
 

@@ -59,7 +59,6 @@ public:
     m_eof = !m_stream->Next();
     return SQLITE_OK;
   }
-  int Close() override { return SQLITE_OK; }
   sqlite3_int64 RowId() override { return 0; }
   int Column(sqlite3_context *ctx, int idxCol) override {
     auto &Current = m_stream->Current();
@@ -255,12 +254,3 @@ int RefsTable::BestIndex(sqlite3_index_info *info) {
 std::unique_ptr<VirtualTableCursor> RefsTable::Open() {
   return std::make_unique<RefsCursor>(*m_stub);
 }
-
-int RefsTable::FindFunction(int nArg, const std::string &name,
-                            void (**pxFunc)(sqlite3_context *, int,
-                                            sqlite3_value **),
-                            void **ppArg) {
-  return 0;
-}
-
-int RefsTable::Destroy() { return SQLITE_OK; }

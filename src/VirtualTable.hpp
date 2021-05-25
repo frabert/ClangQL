@@ -15,8 +15,7 @@ public:
   virtual int FindFunction(int nArg, const std::string &name,
                            void (**pxFunc)(sqlite3_context *, int,
                                            sqlite3_value **),
-                           void **ppArg) = 0;
-  virtual int Destroy() = 0;
+                           void **ppArg);
 };
 
 #endif

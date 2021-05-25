@@ -46,8 +46,6 @@ public:
     return SQLITE_OK;
   }
 
-  int Close() override { return SQLITE_OK; }
-
   sqlite3_int64 RowId() override {
     auto a = strtoll(m_stream->Current().subject_id().c_str(), nullptr, 16);
     auto b = strtoll(m_stream->Current().object().id().c_str(), nullptr, 16);
@@ -117,10 +115,3 @@ int RelationsTable::BestIndex(sqlite3_index_info *info) {
 std::unique_ptr<VirtualTableCursor> RelationsTable::Open() {
   return std::make_unique<RelationsCursor>(*m_stub, m_kind);
 }
-int RelationsTable::FindFunction(int nArg, const std::string &name,
-                                 void (**pxFunc)(sqlite3_context *, int,
-                                                 sqlite3_value **),
-                                 void **ppArg) {
-  return 0;
-}
-int RelationsTable::Destroy() { return SQLITE_OK; }

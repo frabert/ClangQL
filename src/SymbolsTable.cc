@@ -77,8 +77,6 @@ class SymbolsCursor final : public VirtualTableCursor {
 
 public:
   SymbolsCursor(SymbolIndex::Stub &stub) : m_stub(stub) {}
-
-  int Close() override { return SQLITE_OK; }
   int Filter(int idxNum, const char *idxStr, int argc,
              sqlite3_value **argv) override {
     if (idxNum == SEARCH_ID) {
@@ -370,8 +368,6 @@ int SymbolsTable::BestIndex(sqlite3_index_info *info) {
 std::unique_ptr<VirtualTableCursor> SymbolsTable::Open() {
   return std::make_unique<SymbolsCursor>(*m_stub);
 }
-
-int SymbolsTable::Destroy() { return SQLITE_OK; }
 
 static void dummy_func(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
   sqlite3_result_int(ctx, 1);

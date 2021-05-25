@@ -13,11 +13,6 @@ public:
 
   virtual int BestIndex(sqlite3_index_info *info) override;
   virtual std::unique_ptr<VirtualTableCursor> Open() override;
-  virtual int FindFunction(int nArg, const std::string &name,
-                           void (**pxFunc)(sqlite3_context *, int,
-                                           sqlite3_value **),
-                           void **ppArg) override;
-  virtual int Destroy() override;
 };
 
 #endif

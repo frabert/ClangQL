@@ -5,8 +5,6 @@
 class VirtualTableCursor {
 public:
   virtual ~VirtualTableCursor() = default;
-
-  virtual int Close() = 0;
   virtual int Filter(int idxNum, const char *idxStr, int argc,
                      sqlite3_value **argv) = 0;
   virtual int Next() = 0;
