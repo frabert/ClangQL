@@ -102,8 +102,12 @@ static int module_column(sqlite3_vtab_cursor *base, sqlite3_context *ctx,
 
 static int module_rowid(sqlite3_vtab_cursor *base, sqlite3_int64 *rowid) {
   auto cur = (module_vtab_cur *)base;
-  *rowid = cur->cur->RowId();
-  return SQLITE_OK;
+  try {
+    *rowid = cur->cur->RowId();
+    return SQLITE_OK;
+  } catch (std::exception e) {
+    return SQLITE_ERROR;
+  }
 }
 
 static int module_filter(sqlite3_vtab_cursor *base, int idxNum,
