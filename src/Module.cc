@@ -159,12 +159,11 @@ static sqlite3_module module_vtbl = {
   if ((err = (e)) != SQLITE_OK)                                                \
     return err;
 
-static void dummy_func(sqlite3_context *ctx, int, sqlite3_value **) {
-  sqlite3_result_error(ctx, "Invalid call to function", -1);
-}
+static void delete_module(void *udata) { delete (Module *)udata; }
 
 int Module::Register(sqlite3 *db, const char *name) {
   int err;
-  CHECK_ERR(sqlite3_create_module(db, name, &module_vtbl, this));
+  CHECK_ERR(
+   sqlite3_create_module_v2(db, name, &module_vtbl, this, delete_module));
   return SQLITE_OK;
 }
