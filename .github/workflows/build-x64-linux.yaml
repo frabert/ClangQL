@@ -1,0 +1,50 @@
+name: Build x64 linux
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          path: ClangQL
+          fetch-depth: 1
+
+      - name: Install vcpkg
+        shell: bash
+        run: |
+          sudo apt install -y curl zip unzip tar
+          sudo apt install -y build-essential pkg-config
+
+          wget -O vcpkg.tar.gz https://github.com/microsoft/vcpkg/archive/master.tar.gz
+          sudo mkdir /opt/vcpkg
+          sudo tar xf vcpkg.tar.gz --strip-components=1 -C /opt/vcpkg
+          sudo /opt/vcpkg/bootstrap-vcpkg.sh
+          export VCPKG_DISABLE_METRICS=1
+          sudo ln -s /opt/vcpkg/vcpkg /usr/local/bin/vcpkg
+          rm -rf vcpkg.tar.gz
+
+      - name: Install packages
+        shell: bash
+        run: |
+          cd ClangQL
+          vcpkg install
+       
+      - name: Generating gRPC e protobuf code
+        shell: bash
+        run: |
+          cd ClangQL
+          /opt/vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Index.proto --cpp_out=src/
+          /opt/vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Service.proto --cpp_out=src/
+          /opt/vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Service.proto --grpc_out=src/ \
+              --plugin=protoc-gen-grpc="/opt/vcpkg/packages/grpc_x64-linux/tools/grpc/grpc_cpp_plugin"
+
+      - name: Compile
+        shell: bash
+        run: |
+          cd ClangQL
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-linux \
+              -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build
