@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           cd ClangQL
-          ../vcpkg install
+          ../vcpkg/vcpkg install
        
       - name: Generating gRPC e protobuf code
         shell: bash
@@ -48,3 +48,9 @@ jobs:
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-linux \
               -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
           cmake --build build
+
+      - name: Publish
+        uses: actions/upload-artifact@v2
+        with:
+          name: ClangQL
+          path: ClangQL/build/libclangql.so
