@@ -180,7 +180,7 @@ RefsTable::RefsTable(sqlite3 *db, std::unique_ptr<SymbolIndex::Stub> stub)
   int err = sqlite3_declare_vtab(db, schema);
   if (err != SQLITE_OK) {
     auto errmsg = sqlite3_errmsg(db);
-    throw std::exception(errmsg);
+    throw std::runtime_error(errmsg);
   }
 }
 
