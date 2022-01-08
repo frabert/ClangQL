@@ -21,8 +21,8 @@ jobs:
           wget -O vcpkg.tar.gz https://github.com/microsoft/vcpkg/archive/master.tar.gz
           mkdir ./vcpkg
           tar xf vcpkg.tar.gz --strip-components=1 -C ./vcpkg
-          ./vcpkg/bootstrap-vcpkg.sh
           export VCPKG_DISABLE_METRICS=1
+          ./vcpkg/bootstrap-vcpkg.sh
           rm -rf vcpkg.tar.gz
 
       - name: Install packages
