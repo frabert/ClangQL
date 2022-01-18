@@ -1,0 +1,101 @@
+name: Build x64 artifacts
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_DISABLE_METRICS: 1
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          path: ClangQL
+          fetch-depth: 1
+
+      - name: Install vcpkg
+        shell: bash
+        run: |
+          sudo apt install -y curl zip unzip tar
+          sudo apt install -y build-essential pkg-config
+ 
+          wget -O vcpkg.tar.gz https://github.com/microsoft/vcpkg/archive/master.tar.gz
+          mkdir ./vcpkg
+          tar xf vcpkg.tar.gz --strip-components=1 -C ./vcpkg
+          ./vcpkg/bootstrap-vcpkg.sh
+          rm -rf vcpkg.tar.gz
+
+      - name: Install packages
+        shell: bash
+        run: |
+          cd ClangQL
+          ../vcpkg/vcpkg install
+       
+      - name: Generating gRPC and protobuf code
+        shell: bash
+        run: |
+          cd ClangQL
+          ../vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Index.proto --cpp_out=src/
+          ../vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Service.proto --cpp_out=src/
+          ../vcpkg/packages/protobuf_x64-linux/tools/protobuf/protoc Service.proto --grpc_out=src/ \
+              --plugin=protoc-gen-grpc="../vcpkg/packages/grpc_x64-linux/tools/grpc/grpc_cpp_plugin"
+
+      - name: Compile
+        shell: bash
+        run: |
+          cd ClangQL
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-linux \
+              -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build
+
+      - name: Publish
+        uses: actions/upload-artifact@v2
+        with:
+          name: ClangQL-linux
+          path: ClangQL/build/libclangql.so
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      VCPKG_DISABLE_METRICS: 1
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          path: ClangQL
+          fetch-depth: 1
+
+      - name: Install vcpkg
+        run: |
+          git clone --depth=1 https://github.com/microsoft/vcpkg
+          ./vcpkg/bootstrap-vcpkg.bat
+
+      - name: Install packages
+        run: |
+          cd ClangQL
+          ../vcpkg/vcpkg.exe install
+       
+      - name: Generating gRPC and protobuf code
+        shell: bash
+        run: |
+          cd ClangQL
+          ../vcpkg/packages/protobuf_x64-windows/tools/protobuf/protoc.exe Index.proto --cpp_out=src/
+          ../vcpkg/packages/protobuf_x64-windows/tools/protobuf/protoc.exe Service.proto --cpp_out=src/
+          ../vcpkg/packages/protobuf_x64-windows/tools/protobuf/protoc.exe Service.proto --grpc_out=src/ \
+              --plugin=protoc-gen-grpc="../vcpkg/packages/grpc_x64-windows/tools/grpc/grpc_cpp_plugin"
+
+      - name: Compile
+        shell: bash
+        run: |
+          cd ClangQL
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-windows-static-md \
+              -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build
+
+      - name: Publish
+        uses: actions/upload-artifact@v2
+        with:
+          name: ClangQL-linux
+          path: ClangQL/build/clangql.dll
